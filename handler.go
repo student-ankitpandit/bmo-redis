@@ -1,7 +1,6 @@
 package main
 
 import (
-	"hash"
 	"sync"
 )
 
@@ -19,14 +18,14 @@ var Handlers = map[string]func([]Value) Value{
 	"GET": get,
 	"HSET": hset,
 	"HGET": hget,
-
+	"HGETALL": hgetall,
 }
 
 var SETs = map[string]string{}
 var SETsMu = sync.RWMutex{}
 
 var HSETs = map[string]map[string]string{}
-var HSETsMu = sync.RWMutux{}
+var HSETsMu = sync.RWMutex{}
 
 func set(args []Value) Value {
 	if len(args) != 2 {
@@ -88,9 +87,9 @@ func hget(args []Value) Value {
 	hash := args[0].bulk
 	key := args[0].bulk
 
-	HSETsMu.Lock()
+	HSETsMu.RLock()
 	value, ok := HSETs[hash][key]
-	HSETsMu.Unlock()
+	HSETsMu.RUnlock()
 
 	if !ok {
 		return Value{typ: "null"}
@@ -104,12 +103,29 @@ func hgetall(args []Value) Value {
 		return Value{typ: "error", str: "err wrong number of arguments for 'hgetall' command"}
 	}
 
-	hash := args[0].bulk
+	hash := args[0].bulk //hash -> "user"
 
-	HSETsMu.Lock()
-	key, ok := SETs[hash]
-	value := SETs[key]
-	HSETsMu.Unlock()
+	HSETsMu.RLock()
+	data, ok := HSETs[hash] //data -> { "name": "ankit" }
+
+	if !ok {
+		HSETsMu.RUnlock()
+		return Value{
+			typ: "array",
+			array: []Value{}, //returning empty slice
+		}
+	}
+
+	result := []Value{} //empty Value struct slice
 	
+	for key, value := range data {
+		result = append(result, 
+			Value{typ: "bulk", bulk: key},
+			Value{typ: "bulk", bulk: value},
+		)
+	}
+
+	HSETsMu.RUnlock()
 	
+	return Value{typ: "array", array: result}	
 }
