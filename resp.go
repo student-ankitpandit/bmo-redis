@@ -32,6 +32,15 @@ func NewResp(rd io.Reader) *Resp {
 	return &Resp{reader: bufio.NewReader(rd)}
 }
 
+type Writer struct {
+	writer io.Writer
+}
+
+//constructor fn
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{writer: w}
+}
+
 func (r *Resp) readLine() (line []byte, n int, err error) {
 	for {
 		b, err := r.reader.ReadByte()
@@ -128,16 +137,76 @@ func (r *Resp) readBulk() (Value, error) {
 func (v Value) Marshal() []byte {
 	switch v.typ {
 		case "array":
-			return v.MarshalArray()
+			return v.marshalArray()
 		case "bulk":
-			return v.MarshalBulk()
+			return v.marshalBulk()
 		case "string":
-			return v.MarshalString()
+			return v.marshalString()
 		case "null":
-			return v.MarshalNull()
+			return v.marshalNull()
 		case "error":
-			return v.MarshalError()
-	}
+			return v.marshalError()
+	}			
 
 	return []byte{}
 }
+
+func (v Value) marshalArray() []byte {
+	var bytes []byte
+	bytes = append(bytes, STRING)
+	bytes = append(bytes, v.str...)
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+func (v Value) marshalBulk() []byte {
+	var bytes []byte
+	bytes = append(bytes, BULK)
+	bytes = append(bytes, strconv.Itoa(len(v.bulk))...) //(bytes, "5" -> '5')
+	bytes = append(bytes, '\r', '\n')
+	bytes = append(bytes, v.bulk...) //building hello
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+func (v Value) marshalString() []byte {
+	len := len(v.array)
+	var bytes []byte
+	bytes = append(bytes, ARRAY)
+	bytes = append(bytes, strconv.Itoa(len)...) //spreads the splice into individual bytes.
+	bytes = append(bytes, '\r', '\n')
+
+	for i := 0; i < len; i++ {
+		bytes = append(bytes, v.array[i].Marshal()...)
+	}
+
+	return bytes
+}
+
+
+func (v Value) marshalError() []byte {
+	var bytes []byte
+	bytes = append(bytes, ERROR)
+	bytes = append(bytes, v.str...)
+	bytes = append(bytes, '\r', '\n')
+	
+	return bytes
+}
+
+func (v Value) marshalNull() []byte {
+	return []byte("$-1\r\n")
+}
+
+func (w *Writer) Write(v Value) error {
+	var bytes = v.Marshal()
+
+	_, err := w.writer.Write(bytes)
+	 if err != nil {
+			return err
+		}
+		
+	return nil
+}
+

@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"strconv"
 	"strings"
 )
 
@@ -30,42 +26,38 @@ func main() {
 	defer conn.Close()
 
 	for {
-		buf := make([]byte, 1024)
-
-		_, err := conn.Read(buf)
-
+		resp := NewResp(conn)
+		value, err := resp.Read()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			fmt.Println("error reading from client", err.Error())
+			fmt.Println(err)
 			return
 		}
 
-		conn.Write([]byte("+OK\r\n"))
-
-		input := "$5\r\nankit\r\n"
-
-		r := bufio.NewReader(strings.NewReader(input))
-
-		b, _ := r.ReadByte() //consuming '$' imp here
-
-		if b != '$' {
-			fmt.Println("invalid type, expecting bulk string only")
-			os.Exit(1)
+		if value.typ != "array" {
+			fmt.Println("invalid request, expected array")
+			continue
 		}
 
-		size, _ := r.ReadByte() //"5"
+		if len(value.array) == 0 {
+			fmt.Println("invalid request, expected array length > 0")
+			continue
+		}
 
-		strSize, _ := strconv.ParseInt(string(size), 10, 64) //5 
+		command := strings.ToUpper(value.array[0].bulk)
+		args := value.array[1:] //key and value
 
-		r.ReadByte() // /r
-		r.ReadByte() // /n
+		writer := NewWriter(conn)
 
-		name := make([]byte, strSize)
+		handler, ok := Handlers[command]
+		if !ok {
+			fmt.Println("invalid command:", command)
+			writer.Write(Value{typ: "string", str: ""})
+			continue
+		}
 
-		r.Read(name)
-
-		fmt.Println(string(name))
+		result := handler(args)
+		writer.Write(result)
 	}
 }
+
+
