@@ -47,7 +47,7 @@ func (aof *Aof) Close() error {
 	defer aof.mu.Unlock()
 
 	return aof.file.Close()
-} 
+}
 
 func (aof *Aof) Write(value Value) error {
 	aof.mu.Lock()
@@ -69,15 +69,16 @@ func (aof *Aof) Read(callback func(value Value)) error {
 
 	for {
 		value, err := resp.Read()
-		if err == nil {
-			callback(value)
-		}
-		
+
 		if err == io.EOF {
 			break
 		}
 
-		return err
+		if err == nil {
+			return err
+		}
+
+		callback(value)
 	}
 
 	return nil
