@@ -9,13 +9,13 @@ import (
 func main() {
 	fmt.Println("Listening on port :6379")
 
-	//creating a new server
+	// creating a new TCP server listener
 	l, err := net.Listen("tcp", ":6379")
-
 	if err != nil {
 		fmt.Println(err)
-		return 
+		return
 	}
+	defer l.Close()
 
 	aof, err := NewAof("database.aof")
 	if err != nil {
@@ -25,7 +25,7 @@ func main() {
 
 	defer aof.Close()
 
-	aof.Read(func (value Value) {
+	aof.Read(func(value Value) {
 		command := strings.ToUpper(value.array[0].bulk)
 		args := value.array[1:]
 
@@ -37,15 +37,13 @@ func main() {
 
 		handler(args)
 	})
- 
-	//listening for conn
-	conn, err := l.Accept()
 
+	// listening for a single connection
+	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	defer conn.Close()
 
 	for {
@@ -67,7 +65,7 @@ func main() {
 		}
 
 		command := strings.ToUpper(value.array[0].bulk)
-		args := value.array[1:] //key and value
+		args := value.array[1:] // key and value
 
 		writer := NewWriter(conn)
 
@@ -86,5 +84,3 @@ func main() {
 		writer.Write(result)
 	}
 }
-
-
