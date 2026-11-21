@@ -120,7 +120,3 @@ Writes are stored in `database.aof` in the directory where you run the server. T
 ## Contributing
 
 Issues and pull requests are welcome. For larger changes, please open an issue first to discuss what you would like to change.
-
-## Author
-
-**Ankit Pandit**: [@student-ankitpandit](https://github.com/student-ankitpandit)
